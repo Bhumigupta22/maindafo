@@ -10,51 +10,68 @@ export function VoiceInput({ onText, loading }) {
   const [transcribed, setTranscribed] = useState('');
   const [showConfirmation, setShowConfirmation] = useState(false);
   const recognitionRef = useRef(null);
+  const transcribedRef = useRef('');
 
   useEffect(() => {
     voiceAPI.getLanguages().then(res => {
       setLanguages(res.data.languages);
     }).catch(err => console.error('Failed to load languages:', err));
+  }, []);
 
-    // Setup Web Speech API
+  // Setup Web Speech API once
+  useEffect(() => {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (SpeechRecognition) {
-      const recognition = new SpeechRecognition();
-      recognition.continuous = false;
-      recognition.interimResults = true;
-      recognition.lang = language;
-
-      recognition.onstart = () => {
-        setIsRecording(true);
-      };
-
-      recognition.onresult = (event) => {
-        let interimTranscript = '';
-        for (let i = event.resultIndex; i < event.results.length; i++) {
-          const transcript = event.results[i][0].transcript;
-          if (event.results[i].isFinal) {
-            setTranscribed(transcript);
-          } else {
-            interimTranscript += transcript;
-          }
-        }
-      };
-
-      recognition.onerror = (event) => {
-        console.error('Speech recognition error:', event.error);
-        alert('Error: ' + event.error);
-      };
-
-      recognition.onend = () => {
-        setIsRecording(false);
-        if (transcribed) {
-          setShowConfirmation(true);
-        }
-      };
-
-      recognitionRef.current = recognition;
-    } else {
+    if (!SpeechRecognition) {
       console.warn('Web Speech API not supported in this browser');
+      return;
+    }
+
+    const recognition = new SpeechRecognition();
+    recognition.continuous = false;
+    recognition.interimResults = true;
+    recognition.lang = language;
+
+    recognition.onstart = () => {
+      console.log('Recording started');
+      transcribedRef.current = '';
+      setIsRecording(true);
+    };
+
+    recognition.onresult = (event) => {
+      console.log('Speech result:', event.results[event.results.length - 1]);
+      let finalTranscript = '';
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        const transcript = event.results[i][0].transcript;
+        if (event.results[i].isFinal) {
+          finalTranscript += transcript + ' ';
+        }
+      }
+      if (finalTranscript) {
+        transcribedRef.current = finalTranscript.trim();
+        setTranscribed(finalTranscript.trim());
+      }
+    };
+
+    recognition.onerror = (event) => {
+      console.error('Speech recognition error:', event.error);
+      alert('Microphone error: ' + event.error);
+    };
+
+    recognition.onend = () => {
+      console.log('Recording ended. Transcribed:', transcribedRef.current);
+      setIsRecording(false);
+      if (transcribedRef.current) {
+        setShowConfirmation(true);
+      }
+    };
+
+    recognitionRef.current = recognition;
+  }, []);
+
+  // Update language in recognition object when language changes
+  useEffect(() => {
+    if (recognitionRef.current) {
+      recognitionRef.current.lang = language;
     }
   }, [language]);
 

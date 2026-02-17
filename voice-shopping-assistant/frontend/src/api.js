@@ -10,7 +10,8 @@ export const shoppingAPI = {
   getList: () => api.get('/shopping/list'),
   addItem: (item) => api.post('/shopping/add', item),
   removeItem: (itemId) => api.delete(`/shopping/${itemId}`),
-  completeItem: (itemId) => api.put(`/shopping/${itemId}/complete`)
+  completeItem: (itemId) => api.put(`/shopping/${itemId}/complete`),
+  updateItem: (itemId, data) => api.put(`/shopping/${itemId}`, data)
 };
 
 export const voiceAPI = {

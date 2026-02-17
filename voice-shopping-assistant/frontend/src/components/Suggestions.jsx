@@ -2,21 +2,27 @@ import React, { useState, useEffect } from 'react';
 import { suggestionsAPI, shoppingAPI } from '../api';
 import './Suggestions.css';
 
-export function Suggestions({ onAddItem, loading }) {
+export function Suggestions({ items, onAddItem, loading }) {
   const [suggestions, setSuggestions] = useState([]);
   const [loadingSuggestions, setLoadingSuggestions] = useState(false);
 
   useEffect(() => {
-    fetchSuggestions();
-  }, []);
+    // Fetch suggestions whenever items change
+    if (items && items.length > 0) {
+      fetchSuggestions();
+    }
+  }, [items]);
 
   const fetchSuggestions = async () => {
     setLoadingSuggestions(true);
     try {
+      console.log('Fetching suggestions for items:', items);
       const response = await suggestionsAPI.getSmartSuggestions();
+      console.log('API Response:', response.data);
       setSuggestions(response.data.suggestions || []);
     } catch (error) {
       console.error('Failed to fetch suggestions:', error);
+      setSuggestions([]);
     } finally {
       setLoadingSuggestions(false);
     }
@@ -26,7 +32,9 @@ export function Suggestions({ onAddItem, loading }) {
     const icons = {
       'history_based': '📊',
       'seasonal': '🌱',
-      'substitute': '🔄'
+      'substitute': '🔄',
+      'apriori': '🔗',
+      'default': '💡'
     };
     return icons[type] || '💡';
   };

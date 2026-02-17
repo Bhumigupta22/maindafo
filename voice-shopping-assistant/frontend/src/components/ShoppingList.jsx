@@ -4,9 +4,16 @@ import './ShoppingList.css';
 
 export function ShoppingList({ items, onItemRemove, onItemComplete, loading }) {
   const [expandedCategory, setExpandedCategory] = useState(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [updatingQuantity, setUpdatingQuantity] = useState(null);
+
+  // Filter items by search query
+  const filteredItems = items.filter(item =>
+    item.item_name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   // Group items by category
-  const groupedItems = items.reduce((acc, item) => {
+  const groupedItems = filteredItems.reduce((acc, item) => {
     const category = item.category || 'Other';
     if (!acc[category]) {
       acc[category] = [];
@@ -14,6 +21,23 @@ export function ShoppingList({ items, onItemRemove, onItemComplete, loading }) {
     acc[category].push(item);
     return acc;
   }, {});
+
+  const handleQuantityChange = async (itemId, newQuantity) => {
+    if (newQuantity < 1) {
+      onItemRemove(itemId);
+      return;
+    }
+    
+    setUpdatingQuantity(itemId);
+    try {
+      // Update quantity via API
+      await shoppingAPI.updateItem(itemId, { quantity: newQuantity });
+    } catch (err) {
+      console.error('Failed to update quantity:', err);
+    } finally {
+      setUpdatingQuantity(null);
+    }
+  };
 
   const getCategoryEmoji = (category) => {
     const emojis = {
@@ -31,8 +55,30 @@ export function ShoppingList({ items, onItemRemove, onItemComplete, loading }) {
   return (
     <div className="shopping-list">
       <h2>Shopping List</h2>
+      
+      <div className="search-bar">
+        <input
+          type="text"
+          placeholder="🔍 Search items..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="search-input"
+        />
+        {searchQuery && (
+          <button
+            className="clear-search"
+            onClick={() => setSearchQuery('')}
+            title="Clear search"
+          >
+            ✕
+          </button>
+        )}
+      </div>
+
       {items.length === 0 ? (
         <p className="empty-state">No items yet. Add some using voice commands!</p>
+      ) : filteredItems.length === 0 ? (
+        <p className="empty-state">No items match "{searchQuery}". Try a different search.</p>
       ) : (
         <div className="categories">
           {Object.entries(groupedItems).map(([category, categoryItems]) => (
@@ -58,8 +104,26 @@ export function ShoppingList({ items, onItemRemove, onItemComplete, loading }) {
                       <div className="item-details">
                         <div className="item-name">{item.item_name}</div>
                         {item.quantity && (
-                          <div className="item-quantity">
-                            {item.quantity} {item.unit}
+                          <div className="item-quantity-control">
+                            <button
+                              className="qty-btn minus"
+                              onClick={() => handleQuantityChange(item.id, item.quantity - 1)}
+                              disabled={loading || updatingQuantity === item.id}
+                              title="Decrease quantity"
+                            >
+                              −
+                            </button>
+                            <span className="qty-display">
+                              {item.quantity} {item.unit}
+                            </span>
+                            <button
+                              className="qty-btn plus"
+                              onClick={() => handleQuantityChange(item.id, item.quantity + 1)}
+                              disabled={loading || updatingQuantity === item.id}
+                              title="Increase quantity"
+                            >
+                              +
+                            </button>
                           </div>
                         )}
                       </div>

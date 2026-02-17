@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { VoiceInput } from './components/VoiceInput';
 import { ShoppingList } from './components/ShoppingList';
 import { Suggestions } from './components/Suggestions';
+import { DatasetUpload } from './components/DatasetUpload';
 import { shoppingAPI, voiceAPI } from './api';
 import './App.css';
 
@@ -124,6 +125,8 @@ function App() {
           </div>
         )}
 
+        <DatasetUpload onUploadSuccess={loadShoppingList} />
+
         <VoiceInput onText={handleVoiceText} loading={loading} />
 
         {lastCommand && (
@@ -144,7 +147,7 @@ function App() {
           </div>
 
           <div className="right-column">
-            <Suggestions onAddItem={handleAddItem} loading={loading} />
+            <Suggestions items={items} onAddItem={handleAddItem} loading={loading} />
           </div>
         </div>
       </div>
