@@ -2,7 +2,6 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { VoiceInput } from './components/VoiceInput';
 import { ShoppingList } from './components/ShoppingList';
 import { Suggestions } from './components/Suggestions';
-import { DatasetUpload } from './components/DatasetUpload';
 import { shoppingAPI, voiceAPI } from './api';
 import './App.css';
 
@@ -48,7 +47,15 @@ function App() {
           unit: response.data.unit
         });
         
-        setItems([...items, addResponse.data.item]);
+        const addedItem = addResponse.data.item;
+        const existingIndex = items.findIndex(item => item.id === addedItem.id);
+        if (existingIndex !== -1) {
+          const updatedItems = [...items];
+          updatedItems[existingIndex] = addedItem;
+          setItems(updatedItems);
+        } else {
+          setItems([...items, addedItem]);
+        }
       } else if (response.data.command === 'remove') {
         // Handle remove command
         const itemToRemove = items.find(item =>
@@ -72,7 +79,19 @@ function App() {
     try {
       setLoading(true);
       const response = await shoppingAPI.addItem(itemData);
-      setItems([...items, response.data.item]);
+      const addedItem = response.data.item;
+      
+      // Check if item already exists (update) or new (add)
+      const existingIndex = items.findIndex(item => item.id === addedItem.id);
+      if (existingIndex !== -1) {
+        // Update existing item
+        const updatedItems = [...items];
+        updatedItems[existingIndex] = addedItem;
+        setItems(updatedItems);
+      } else {
+        // Add new item
+        setItems([...items, addedItem]);
+      }
       setError(null);
     } catch (err) {
       setError('Failed to add item');
@@ -110,6 +129,25 @@ function App() {
     }
   };
 
+  const handleQuantityChange = async (itemId, newQuantity) => {
+    if (newQuantity < 1) {
+      handleRemoveItem(itemId);
+      return;
+    }
+    try {
+      setLoading(true);
+      const response = await shoppingAPI.updateItem(itemId, { quantity: newQuantity });
+      const updatedItem = response.data.item;
+      setItems(items.map(item => item.id === itemId ? updatedItem : item));
+      setError(null);
+    } catch (err) {
+      setError('Failed to update quantity');
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="app">
       <div className="container">
@@ -124,8 +162,6 @@ function App() {
             <button onClick={() => setError(null)}>×</button>
           </div>
         )}
-
-        <DatasetUpload onUploadSuccess={loadShoppingList} />
 
         <VoiceInput onText={handleVoiceText} loading={loading} />
 
@@ -142,6 +178,7 @@ function App() {
               items={items}
               onItemRemove={handleRemoveItem}
               onItemComplete={handleCompleteItem}
+              onQuantityChange={handleQuantityChange}
               loading={loading}
             />
           </div>

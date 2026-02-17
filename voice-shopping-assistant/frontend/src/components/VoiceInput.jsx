@@ -127,10 +127,6 @@ export function VoiceInput({ onText, loading }) {
         </select>
       </div>
 
-      <div className="voice-note">
-        <p>✨ <strong>Now using built-in Web Speech API!</strong> No setup needed, completely free, works right now.</p>
-      </div>
-
       <div className="input-method-section">
         <h4>Add Items</h4>
         

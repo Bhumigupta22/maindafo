@@ -10,9 +10,18 @@ bp = Blueprint('shopping', __name__, url_prefix='/api/shopping')
 def get_list():
     try:
         items = get_shopping_list()
-        # Transform for Frontend: 'item_name' -> 'name'
-        formatted = [{'id': i['id'], 'name': i['item_name'], 'category': i['category'], 'quantity': i['quantity']} for i in items]
-        return jsonify(formatted), 200
+        # Transform DB rows into frontend-expected shape and wrap in `items`
+        formatted = [
+            {
+                'id': i['id'],
+                'item_name': i['item_name'],
+                'category': i.get('category'),
+                'quantity': i.get('quantity', 1),
+                'unit': i.get('unit')
+            }
+            for i in items
+        ]
+        return jsonify({'items': formatted}), 200
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
@@ -20,19 +29,87 @@ def get_list():
 def add_item():
     try:
         data = request.get_json()
-        name = data.get('name') or data.get('item_name')
+        # Accept either `name` or `item_name` to be flexible
+        name = data.get('item_name') or data.get('name')
         if not name:
             return jsonify({'error': 'Name is required'}), 400
-        
-        item_id = add_shopping_item(name, data.get('category', 'other'), data.get('quantity', 1))
-        return jsonify({'id': item_id, 'name': name, 'category': data.get('category', 'other')}), 201
+
+        category = data.get('category', 'other')
+        quantity = data.get('quantity', 1)
+
+        item_id = add_shopping_item(name, category, quantity)
+
+        # Return the created item in the shape frontend expects (`item`)
+        return jsonify({
+            'item': {
+                'id': item_id,
+                'item_name': name,
+                'category': category,
+                'quantity': quantity
+            }
+        }), 201
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-@bp.route('/delete/<int:item_id>', methods=['DELETE', 'POST'])
+
+@bp.route('/<int:item_id>', methods=['DELETE'])
 def delete_item(item_id):
     try:
         success = remove_shopping_item(item_id)
-        return jsonify({'success': success}), 200 if success else 404
+        if success:
+            return jsonify({'success': True}), 200
+        return jsonify({'error': 'Item not found'}), 404
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@bp.route('/<int:item_id>', methods=['PUT'])
+def update_item(item_id):
+    try:
+        data = request.get_json()
+        quantity = data.get('quantity')
+        
+        if quantity is None:
+            return jsonify({'error': 'Quantity is required'}), 400
+        
+        if quantity < 1:
+            # Delete item if quantity < 1
+            remove_shopping_item(item_id)
+            return jsonify({'success': True}), 200
+        
+        # Update quantity in database
+        with get_db() as conn:
+            cursor = conn.cursor()
+            cursor.execute('UPDATE shopping_list SET quantity = ? WHERE id = ?', (quantity, item_id))
+            
+            # Fetch updated item
+            cursor.execute('SELECT * FROM shopping_list WHERE id = ?', (item_id,))
+            item = cursor.fetchone()
+            
+            if not item:
+                return jsonify({'error': 'Item not found'}), 404
+            
+            # Convert Row to dict for proper property access
+            item_dict = dict(item)
+            return jsonify({
+                'item': {
+                    'id': item_dict['id'],
+                    'item_name': item_dict['item_name'],
+                    'category': item_dict.get('category'),
+                    'quantity': item_dict.get('quantity', 1),
+                    'unit': item_dict.get('unit')
+                }
+            }), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@bp.route('/<int:item_id>/complete', methods=['PUT'])
+def complete_item(item_id):
+    try:
+        success = mark_item_complete(item_id)
+        if success:
+            return jsonify({'success': True}), 200
+        return jsonify({'error': 'Item not found'}), 404
     except Exception as e:
         return jsonify({'error': str(e)}), 500

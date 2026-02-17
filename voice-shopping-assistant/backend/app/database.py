@@ -49,11 +49,27 @@ def get_db():
 def add_shopping_item(item_name, category, quantity=1):
     with get_db() as conn:
         cursor = conn.cursor()
+        # Check if item already exists
         cursor.execute('''
-            INSERT INTO shopping_list (item_name, category, quantity)
-            VALUES (?, ?, ?)
-        ''', (item_name, category, quantity))
-        return cursor.lastrowid
+            SELECT id, quantity FROM shopping_list 
+            WHERE LOWER(item_name) = LOWER(?) AND completed = 0
+        ''', (item_name.strip(),))
+        existing = cursor.fetchone()
+        
+        if existing:
+            # Update existing item quantity
+            new_quantity = existing['quantity'] + quantity
+            cursor.execute('''
+                UPDATE shopping_list SET quantity = ? WHERE id = ?
+            ''', (new_quantity, existing['id']))
+            return existing['id']
+        else:
+            # Insert new item
+            cursor.execute('''
+                INSERT INTO shopping_list (item_name, category, quantity)
+                VALUES (?, ?, ?)
+            ''', (item_name.strip(), category, quantity))
+            return cursor.lastrowid
 
 def get_shopping_list():
     with get_db() as conn:

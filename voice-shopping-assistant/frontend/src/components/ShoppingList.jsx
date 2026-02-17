@@ -2,10 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { shoppingAPI } from '../api';
 import './ShoppingList.css';
 
-export function ShoppingList({ items, onItemRemove, onItemComplete, loading }) {
+export function ShoppingList({ items, onItemRemove, onItemComplete, onQuantityChange, loading }) {
   const [expandedCategory, setExpandedCategory] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
-  const [updatingQuantity, setUpdatingQuantity] = useState(null);
 
   // Filter items by search query
   const filteredItems = items.filter(item =>
@@ -21,23 +20,6 @@ export function ShoppingList({ items, onItemRemove, onItemComplete, loading }) {
     acc[category].push(item);
     return acc;
   }, {});
-
-  const handleQuantityChange = async (itemId, newQuantity) => {
-    if (newQuantity < 1) {
-      onItemRemove(itemId);
-      return;
-    }
-    
-    setUpdatingQuantity(itemId);
-    try {
-      // Update quantity via API
-      await shoppingAPI.updateItem(itemId, { quantity: newQuantity });
-    } catch (err) {
-      console.error('Failed to update quantity:', err);
-    } finally {
-      setUpdatingQuantity(null);
-    }
-  };
 
   const getCategoryEmoji = (category) => {
     const emojis = {
@@ -107,19 +89,19 @@ export function ShoppingList({ items, onItemRemove, onItemComplete, loading }) {
                           <div className="item-quantity-control">
                             <button
                               className="qty-btn minus"
-                              onClick={() => handleQuantityChange(item.id, item.quantity - 1)}
-                              disabled={loading || updatingQuantity === item.id}
+                              onClick={() => onQuantityChange(item.id, item.quantity - 1)}
+                              disabled={loading}
                               title="Decrease quantity"
                             >
                               −
                             </button>
                             <span className="qty-display">
-                              {item.quantity} {item.unit}
+                              {item.quantity} {item.unit || 'qty'}
                             </span>
                             <button
                               className="qty-btn plus"
-                              onClick={() => handleQuantityChange(item.id, item.quantity + 1)}
-                              disabled={loading || updatingQuantity === item.id}
+                              onClick={() => onQuantityChange(item.id, item.quantity + 1)}
+                              disabled={loading}
                               title="Increase quantity"
                             >
                               +
